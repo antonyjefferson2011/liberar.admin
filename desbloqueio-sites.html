@@ -1,0 +1,273 @@
+<!-- ARQUIVO 3: desbloqueio-sites.html (Painel para liberar sites mediante pagamento) -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Desbloqueio | Controle de Sites</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    body {
+      background: #FFF9F0;
+      padding: 24px 16px;
+      color: #3E2723;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 32px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+      border: 1px solid #FFE0B5;
+    }
+    h1 {
+      color: #F57C00;
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+    }
+    .login-area {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      background: #FFF3E0;
+      padding: 16px;
+      border-radius: 48px;
+    }
+    input, button {
+      border-radius: 48px;
+      border: none;
+      padding: 12px 20px;
+      font-size: 1rem;
+    }
+    input {
+      background: white;
+      border: 1px solid #FFD699;
+      flex: 1;
+    }
+    button {
+      background: #FF9800;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover { background: #F57C00; }
+    .btn-sec {
+      background: #FFE0B5;
+      color: #F57C00;
+    }
+    .tabela-sites {
+      margin-top: 20px;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      text-align: left;
+      padding: 14px 8px;
+      border-bottom: 1px solid #FFE0B5;
+    }
+    .status-tag {
+      background: #FFF3E0;
+      padding: 4px 12px;
+      border-radius: 40px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      display: inline-block;
+    }
+    .liberado { background: #C8E6C9; color: #2E7D32; }
+    .bloqueado { background: #FFEBEE; color: #D84315; }
+    .btn-acao {
+      background: #FF9800;
+      padding: 6px 14px;
+      font-size: 0.75rem;
+      margin: 2px;
+    }
+    .btn-excluir-site {
+      background: #FFCCBC;
+      color: #BF360C;
+    }
+    .campo-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .campo-form input {
+      flex: 1;
+    }
+    hr {
+      margin: 24px 0;
+      border-color: #FFE0B5;
+    }
+    .info {
+      background: #FFF3E0;
+      border-radius: 28px;
+      padding: 14px;
+      font-size: 0.85rem;
+      color: #E65100;
+    }
+    @media (max-width: 600px) {
+      th, td { font-size: 0.8rem; }
+      .campo-form { flex-direction: column; }
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBqkdS6pHnDs2gJnEVXliMNLfssS5C7EuA",
+      authDomain: "teste-67ee5.firebaseapp.com",
+      databaseURL: "https://teste-67ee5-default-rtdb.firebaseio.com",
+      projectId: "teste-67ee5",
+      storageBucket: "teste-67ee5.firebasestorage.app",
+      messagingSenderId: "374329071759",
+      appId: "1:374329071759:web:610fa44bc6395b8895f8fa"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const ADMIN_PASS = "admin123"; // senha do painel de desbloqueio
+
+    let logado = false;
+
+    window.onload = () => {
+      document.getElementById("btn-login").addEventListener("click", () => {
+        const pass = document.getElementById("senha-master").value;
+        if(pass === ADMIN_PASS) {
+          logado = true;
+          document.getElementById("login-panel").style.display = "none";
+          document.getElementById("conteudo-admin").style.display = "block";
+          carregarSites();
+        } else alert("Senha incorreta");
+      });
+      document.getElementById("btn-add-site").addEventListener("click", adicionarSite);
+      document.getElementById("btn-logout").addEventListener("click", () => {
+        logado = false;
+        document.getElementById("login-panel").style.display = "block";
+        document.getElementById("conteudo-admin").style.display = "none";
+      });
+    };
+
+    function carregarSites() {
+      const ref = db.ref("sites_liberacao");
+      ref.on("value", (snap) => {
+        const sites = [];
+        snap.forEach(child => sites.push({ id: child.key, ...child.val() }));
+        renderizarTabela(sites);
+      });
+    }
+
+    function renderizarTabela(sites) {
+      const tbody = document.getElementById("tabela-sites-body");
+      if(!tbody) return;
+      if(sites.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='5'>Nenhum site cadastrado. Adicione um projeto.</td></tr>";
+        return;
+      }
+      tbody.innerHTML = sites.map(site => `
+        <tr>
+          <td><strong>${site.nome}</strong><br><small style="color:#F57C00">${site.url || '—'}</small></td>
+          <td>${site.slug || site.id}</td>
+          <td><span class="status-tag ${site.liberado ? 'liberado' : 'bloqueado'}">${site.liberado ? 'LIBERADO' : 'BLOQUEADO'}</span></td>
+          <td>
+            <button class="btn-acao" data-id="${site.id}" data-acao="toggle">${site.liberado ? '🔒 Bloquear' : '🔓 Liberar'}</button>
+            <button class="btn-acao btn-excluir-site" data-id="${site.id}" data-acao="excluir">🗑️ Excluir</button>
+          </td>
+          <td><code style="background:#FFF3E0;padding:4px 8px;border-radius:16px;">acesso?token=${site.id}</code></td>
+        </tr>
+      `).join('');
+      document.querySelectorAll("[data-acao='toggle']").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const id = btn.dataset.id;
+          const siteRef = db.ref(`sites_liberacao/${id}`);
+          const snap = await siteRef.once("value");
+          const atual = snap.val();
+          if(atual) await siteRef.update({ liberado: !atual.liberado });
+        });
+      });
+      document.querySelectorAll("[data-acao='excluir']").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if(confirm("Excluir este site permanentemente?")) await db.ref(`sites_liberacao/${btn.dataset.id}`).remove();
+        });
+      });
+    }
+
+    async function adicionarSite() {
+      const nome = document.getElementById("site-nome").value.trim();
+      const url = document.getElementById("site-url").value.trim();
+      const slug = document.getElementById("site-slug").value.trim() || nome.toLowerCase().replace(/\s/g, '-');
+      if(!nome) { alert("Informe o nome do site/projeto"); return; }
+      await db.ref("sites_liberacao").push({
+        nome,
+        url: url || "",
+        slug,
+        liberado: false,
+        criadoEm: Date.now()
+      });
+      alert("Site adicionado! Agora você pode liberar quando o pagamento for confirmado.");
+      document.getElementById("site-nome").value = "";
+      document.getElementById("site-url").value = "";
+      document.getElementById("site-slug").value = "";
+    }
+  </script>
+</head>
+<body>
+<div class="container">
+  <div class="card" style="text-align:center">
+    <h1>🔓 Painel de Desbloqueio</h1>
+    <p>Gerencie sites e libere acesso APÓS PAGAMENTO</p>
+  </div>
+
+  <div id="login-panel" class="card">
+    <div class="login-area">
+      <input type="password" id="senha-master" placeholder="Senha master do sistema">
+      <button id="btn-login">Entrar</button>
+    </div>
+    <div class="info">🔐 Acesso restrito (senha padrão: admin123)</div>
+  </div>
+
+  <div id="conteudo-admin" style="display:none;">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2>📌 Cadastrar novo site/projeto</h2>
+        <button id="btn-logout" class="btn-sec">Sair</button>
+      </div>
+      <div class="campo-form">
+        <input type="text" id="site-nome" placeholder="Nome do site (ex: Meu Site Profissional)">
+        <input type="text" id="site-url" placeholder="URL do site (opcional)">
+        <input type="text" id="site-slug" placeholder="Identificador (slug)">
+        <button id="btn-add-site">➕ Adicionar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🌐 Sites criados (controle de liberação)</h2>
+      <div class="tabela-sites">
+        <table>
+          <thead>
+            <tr><th>Nome / URL</th><th>Slug/ID</th><th>Status</th><th>Ações</th><th>Link de verificação</th></tr>
+          </thead>
+          <tbody id="tabela-sites-body"><tr><td colspan="5">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="info" style="margin-top:16px;">
+        💡 Como usar: Após o cliente pagar, clique em "LIBERAR" no site correspondente. Você pode enviar o link com token para o cliente validar.
+        <br>Para verificar se o site está liberado, consulte no Firebase: <code>sites_liberacao/{id}/liberado</code>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
