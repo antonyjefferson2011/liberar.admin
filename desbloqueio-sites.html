@@ -1,10 +1,9 @@
-<!-- ARQUIVO 3: desbloqueio-sites.html (Painel para liberar sites mediante pagamento) -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel de Desbloqueio | Controle de Sites</title>
+  <title>Gran Pastelli - Painel de Desbloqueio</title>
   <style>
     * {
       margin: 0;
@@ -138,8 +137,8 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const ADMIN_PASS = "admin123"; // senha do painel de desbloqueio
 
+    const ADMIN_PASS = "admin123";
     let logado = false;
 
     window.onload = () => {
@@ -150,6 +149,8 @@
           document.getElementById("login-panel").style.display = "none";
           document.getElementById("conteudo-admin").style.display = "block";
           carregarSites();
+          // Verificar se os sites padrão existem, se não, criar
+          garantirSitesPadrao();
         } else alert("Senha incorreta");
       });
       document.getElementById("btn-add-site").addEventListener("click", adicionarSite);
@@ -159,6 +160,29 @@
         document.getElementById("conteudo-admin").style.display = "none";
       });
     };
+
+    async function garantirSitesPadrao() {
+      const ref = db.ref("sites_liberacao");
+      const snapshot = await ref.once("value");
+      const existeCliente = snapshot.child("site_cliente").exists();
+      const existeAdmin = snapshot.child("site_admin").exists();
+      if(!existeCliente) {
+        await ref.child("site_cliente").set({
+          nome: "Site Cliente - Gran Pastelli",
+          url: "",
+          liberado: false,
+          criadoEm: Date.now()
+        });
+      }
+      if(!existeAdmin) {
+        await ref.child("site_admin").set({
+          nome: "Painel Admin - Gran Pastelli",
+          url: "",
+          liberado: false,
+          criadoEm: Date.now()
+        });
+      }
+    }
 
     function carregarSites() {
       const ref = db.ref("sites_liberacao");
@@ -179,12 +203,12 @@
       tbody.innerHTML = sites.map(site => `
         <tr>
           <td><strong>${site.nome}</strong><br><small style="color:#F57C00">${site.url || '—'}</small></td>
-          <td>${site.slug || site.id}</td>
+          <td>${site.id}</td>
           <td><span class="status-tag ${site.liberado ? 'liberado' : 'bloqueado'}">${site.liberado ? 'LIBERADO' : 'BLOQUEADO'}</span></td>
           <td>
             <button class="btn-acao" data-id="${site.id}" data-acao="toggle">${site.liberado ? '🔒 Bloquear' : '🔓 Liberar'}</button>
-            <button class="btn-acao btn-excluir-site" data-id="${site.id}" data-acao="excluir">🗑️ Excluir</button>
-          </td>
+            ${site.id !== 'site_cliente' && site.id !== 'site_admin' ? `<button class="btn-acao btn-excluir-site" data-id="${site.id}" data-acao="excluir">🗑️ Excluir</button>` : ''}
+           </td>
           <td><code style="background:#FFF3E0;padding:4px 8px;border-radius:16px;">acesso?token=${site.id}</code></td>
         </tr>
       `).join('');
@@ -207,12 +231,12 @@
     async function adicionarSite() {
       const nome = document.getElementById("site-nome").value.trim();
       const url = document.getElementById("site-url").value.trim();
-      const slug = document.getElementById("site-slug").value.trim() || nome.toLowerCase().replace(/\s/g, '-');
+      let slug = document.getElementById("site-slug").value.trim();
       if(!nome) { alert("Informe o nome do site/projeto"); return; }
-      await db.ref("sites_liberacao").push({
+      if(!slug) slug = nome.toLowerCase().replace(/\s/g, '-') + Date.now();
+      await db.ref(`sites_liberacao/${slug}`).set({
         nome,
         url: url || "",
-        slug,
         liberado: false,
         criadoEm: Date.now()
       });
@@ -247,7 +271,7 @@
       <div class="campo-form">
         <input type="text" id="site-nome" placeholder="Nome do site (ex: Meu Site Profissional)">
         <input type="text" id="site-url" placeholder="URL do site (opcional)">
-        <input type="text" id="site-slug" placeholder="Identificador (slug)">
+        <input type="text" id="site-slug" placeholder="Identificador único (ex: meusite)">
         <button id="btn-add-site">➕ Adicionar</button>
       </div>
     </div>
@@ -257,14 +281,15 @@
       <div class="tabela-sites">
         <table>
           <thead>
-            <tr><th>Nome / URL</th><th>Slug/ID</th><th>Status</th><th>Ações</th><th>Link de verificação</th></tr>
+            <tr><th>Nome / URL</th><th>ID único</th><th>Status</th><th>Ações</th><th>Verificação</th></tr>
           </thead>
           <tbody id="tabela-sites-body"><tr><td colspan="5">Carregando...</td></tr></tbody>
         </table>
       </div>
       <div class="info" style="margin-top:16px;">
-        💡 Como usar: Após o cliente pagar, clique em "LIBERAR" no site correspondente. Você pode enviar o link com token para o cliente validar.
-        <br>Para verificar se o site está liberado, consulte no Firebase: <code>sites_liberacao/{id}/liberado</code>
+        💡 Como usar: Após o cliente pagar, clique em "LIBERAR" no site correspondente.<br>
+        Os sites cliente e admin (IDs: <strong>site_cliente</strong> e <strong>site_admin</strong>) já vêm criados automaticamente.<br>
+        Você pode adicionar outros projetos também.
       </div>
     </div>
   </div>
