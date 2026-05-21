@@ -4,12 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Sexta-feira • Assistente Pessoal</title>
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Fontes & Ícones -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -26,7 +20,6 @@
       color: #e0f0ff;
     }
 
-    /* SIDEBAR LATERAL */
     .sidebar {
       width: 260px;
       background: rgba(12, 20, 30, 0.9);
@@ -58,6 +51,7 @@
       background: linear-gradient(135deg, #a0f0ff, #00b7ff);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .nav-tabs {
@@ -87,6 +81,7 @@
       font-size: 1.2rem;
       width: 24px;
       text-align: center;
+      font-style: normal;
     }
 
     .tab-btn:hover {
@@ -122,7 +117,6 @@
       color: #7f95b5;
     }
 
-    /* MAIN CONTENT */
     .main-panel {
       flex: 1;
       display: flex;
@@ -143,7 +137,6 @@
       flex-direction: column;
     }
 
-    /* CHAT */
     .chat-container {
       display: flex;
       flex-direction: column;
@@ -257,7 +250,6 @@
       cursor: pointer;
     }
 
-    /* MAPA */
     #map {
       height: 100%;
       width: 100%;
@@ -271,7 +263,6 @@
       flex-direction: column;
     }
 
-    /* CLIMA */
     .weather-card {
       background: rgba(12, 25, 40, 0.7);
       backdrop-filter: blur(15px);
@@ -281,7 +272,6 @@
       max-width: 400px;
     }
 
-    /* MEMÓRIA */
     .memory-list {
       display: flex;
       flex-direction: column;
@@ -324,63 +314,32 @@
   </aside>
 
   <main class="main-panel">
-    <!-- Chat View -->
     <div id="chat-view" class="view active-view">
       <div class="chat-container">
         <div class="chat-messages" id="chat-messages"></div>
         <div class="input-area">
           <button id="mic-btn" class="mic-btn" title="Ouvir">🎤</button>
-          <input type="text" id="user-input" placeholder="Fale com a Sexta-feira" autocomplete="off">
+          <input type="text" id="user-input" placeholder="Fale com a Sexta-feira..." autocomplete="off">
           <button id="send-btn" class="send-btn">➤</button>
           <button id="clear-chat" class="clear-chat">Limpar</button>
         </div>
       </div>
     </div>
-    <!-- Mapa View -->
     <div id="map-view" class="view">
       <div class="map-wrapper"><div id="map"></div></div>
     </div>
-    <!-- Clima View -->
     <div id="weather-view" class="view">
       <div class="weather-card" id="weather-data">Carregando clima...</div>
     </div>
-    <!-- Memória View -->
     <div id="memory-view" class="view">
       <h2 style="margin-bottom:1rem;">📌 Memórias salvas</h2>
       <div id="memory-container" class="memory-list"></div>
     </div>
   </main>
 
-  <!-- Firebase + Leaflet -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, push } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBzqQmGpMz-7AYM7_Mpt2owpmf6BXjW1yk",
-      authDomain: "nucisz.firebaseapp.com",
-      databaseURL: "https://nucisz-default-rtdb.firebaseio.com",
-      projectId: "nucisz",
-      storageBucket: "nucisz.firebasestorage.app",
-      messagingSenderId: "90824519141",
-      appId: "1:90824519141:web:8ec5d6686c07cbbf94930c",
-      measurementId: "G-BZ4S7Q3NM2"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    window.db = db;
-    window.firebaseRef = ref;
-    window.firebasePush = push;
-    window.firebaseSet = set;
-    window.firebaseOnValue = onValue;
-  </script>
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     // ========== SISTEMA JARVIS - SEXTA-FEIRA ==========
     (function() {
-      // ESTADO GLOBAL
       const DEEPSEEK_KEY = 'sk-73237aacabab46b3ba7dd37d76a84ccf';
       const WEATHER_KEY = 'xqj042lJFAHcsK1U';
       let isRequesting = false;
@@ -388,7 +347,6 @@
       let mapInstance = null;
       let currentMarker = null;
 
-      // Elementos UI
       const views = document.querySelectorAll('.view');
       const tabBtns = document.querySelectorAll('.tab-btn');
       const chatMessages = document.getElementById('chat-messages');
@@ -399,17 +357,59 @@
       const liveClock = document.getElementById('live-clock');
       const dateDisplay = document.getElementById('date-display');
 
-      // Inicialização
-      document.addEventListener('DOMContentLoaded', () => {
-        setupTabs();
-        startClock();
-        loadChatHistory();
-        setupSpeech();
-        initMap();
-        fetchWeather();
-        loadMemories();
-        setupEventListeners();
-      });
+      // Firebase via CDN
+      let db = null;
+      let firebaseRef = null;
+      let firebaseSet = null;
+      let firebaseOnValue = null;
+
+      // Carrega Firebase dinamicamente
+      function loadFirebase() {
+        return new Promise((resolve) => {
+          const script1 = document.createElement('script');
+          script1.src = 'https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js';
+          script1.onload = () => {
+            const script2 = document.createElement('script');
+            script2.src = 'https://www.gstatic.com/firebasejs/10.11.0/firebase-database-compat.js';
+            script2.onload = () => {
+              const config = {
+                apiKey: "AIzaSyBzqQmGpMz-7AYM7_Mpt2owpmf6BXjW1yk",
+                authDomain: "nucisz.firebaseapp.com",
+                databaseURL: "https://nucisz-default-rtdb.firebaseio.com",
+                projectId: "nucisz",
+                storageBucket: "nucisz.firebasestorage.app",
+                messagingSenderId: "90824519141",
+                appId: "1:90824519141:web:8ec5d6686c07cbbf94930c"
+              };
+              firebase.initializeApp(config);
+              db = firebase.database();
+              firebaseRef = (path) => db.ref(path);
+              firebaseSet = (ref, data) => ref.set(data);
+              firebaseOnValue = (ref, callback) => ref.on('value', callback);
+              resolve();
+            };
+            document.head.appendChild(script2);
+          };
+          document.head.appendChild(script1);
+        });
+      }
+
+      // Leaflet CSS inline
+      const leafletCSS = document.createElement('style');
+      leafletCSS.textContent = `
+        .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}.leaflet-container{overflow:hidden}.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow{-webkit-user-select:none;-moz-user-select:none;user-select:none;-webkit-user-drag:none}.leaflet-tile::selection{background:0 0}.leaflet-safari .leaflet-tile{image-rendering:-webkit-optimize-contrast}.leaflet-safari .leaflet-tile-container{width:1600px;height:1600px;-webkit-transform-origin:0 0}.leaflet-marker-icon,.leaflet-marker-shadow{display:block}.leaflet-container .leaflet-overlay-pane svg{max-width:none!important;max-height:none!important}.leaflet-container .leaflet-marker-pane img,.leaflet-container .leaflet-shadow-pane img,.leaflet-container .leaflet-tile-pane img,.leaflet-container img.leaflet-image-layer,.leaflet-container .leaflet-tile{max-width:none!important;max-height:none!important;width:auto;padding:0}.leaflet-container img.leaflet-tile{mix-blend-mode:normal}.leaflet-container.leaflet-touch-zoom{-ms-touch-action:pan-x pan-y;touch-action:pan-x pan-y}.leaflet-container.leaflet-touch-drag{-ms-touch-action:pinch-zoom;touch-action:none;touch-action:pinch-zoom}.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom{-ms-touch-action:none;touch-action:none}.leaflet-container{-webkit-tap-highlight-color:transparent}.leaflet-container a{-webkit-tap-highlight-color:rgba(51,181,229,0.4)}.leaflet-tile{filter:inherit;visibility:hidden}.leaflet-tile-loaded{visibility:inherit}.leaflet-zoom-box{width:0;height:0;-moz-box-sizing:border-box;box-sizing:border-box;z-index:800}.leaflet-overlay-pane svg{-moz-user-select:none}.leaflet-pane{z-index:400}.leaflet-tile-pane{z-index:200}.leaflet-overlay-pane{z-index:400}.leaflet-shadow-pane{z-index:500}.leaflet-marker-pane{z-index:600}.leaflet-tooltip-pane{z-index:650}.leaflet-popup-pane{z-index:700}.leaflet-map-pane canvas{z-index:100}.leaflet-map-pane svg{z-index:200}.leaflet-vml-shape{width:1px;height:1px}.lvml{behavior:url(#default#VML);display:inline-block;position:absolute}.leaflet-control{position:relative;z-index:800;pointer-events:auto}.leaflet-top,.leaflet-bottom{position:absolute;z-index:1000;pointer-events:none}.leaflet-top{top:0}.leaflet-right{right:0}.leaflet-bottom{bottom:0}.leaflet-left{left:0}.leaflet-control{float:left;clear:both}.leaflet-right .leaflet-control{float:right}.leaflet-top .leaflet-control{margin-top:10px}.leaflet-bottom .leaflet-control{margin-bottom:10px}.leaflet-left .leaflet-control{margin-left:10px}.leaflet-right .leaflet-control{margin-right:10px}.leaflet-fade-anim .leaflet-popup{opacity:0;-webkit-transition:opacity .2s linear;-moz-transition:opacity .2s linear;transition:opacity .2s linear}.leaflet-fade-anim .leaflet-map-pane .leaflet-popup{opacity:1}.leaflet-zoom-animated{-webkit-transform-origin:0 0;-ms-transform-origin:0 0;transform-origin:0 0}svg.leaflet-zoom-animated{will-change:transform}.leaflet-zoom-anim .leaflet-zoom-animated{-webkit-transition:-webkit-transform .25s cubic-bezier(0,0,0.25,1);-moz-transition:-moz-transform .25s cubic-bezier(0,0,0.25,1);transition:transform .25s cubic-bezier(0,0,0.25,1)}.leaflet-zoom-anim .leaflet-tile,.leaflet-pan-anim .leaflet-tile{-webkit-transition:none;-moz-transition:none;transition:none}.leaflet-zoom-anim .leaflet-zoom-hide{visibility:hidden}.leaflet-interactive{cursor:pointer}.leaflet-grab{cursor:-webkit-grab;cursor:-moz-grab;cursor:grab}.leaflet-crosshair,.leaflet-crosshair .leaflet-interactive{cursor:crosshair}.leaflet-popup-pane,.leaflet-control{cursor:auto}.leaflet-dragging .leaflet-grab,.leaflet-dragging .leaflet-grab .leaflet-interactive,.leaflet-dragging .leaflet-marker-draggable{cursor:move;cursor:-webkit-grabbing;cursor:-moz-gragging;cursor:grabbing}.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-image-layer,.leaflet-pane>svg path,.leaflet-tile-container{pointer-events:none}.leaflet-marker-icon.leaflet-interactive,.leaflet-image-layer.leaflet-interactive,.leaflet-pane>svg path.leaflet-interactive,svg.leaflet-image-layer.leaflet-interactive path{pointer-events:auto}.leaflet-container{background:#ddd;outline-offset:1px}.leaflet-container a{color:#0078A8}.leaflet-zoom-box{border:2px dotted #38f;background:rgba(255,255,255,0.5)}.leaflet-container{font-family:"Helvetica Neue",Arial,Helvetica,sans-serif;font-size:12px;font-size:.75rem;line-height:1.5}.leaflet-bar{box-shadow:0 1px 5px rgba(0,0,0,0.65);border-radius:4px}.leaflet-bar a{background-color:#fff;border-bottom:1px solid #ccc;width:26px;height:26px;line-height:26px;display:block;text-align:center;text-decoration:none;color:#000}.leaflet-bar a,.leaflet-control-layers-toggle{background-position:50% 50%;background-repeat:no-repeat;display:block}.leaflet-bar a:hover,.leaflet-bar a:focus{background-color:#f4f4f4}.leaflet-bar a:first-child{border-top-left-radius:4px;border-top-right-radius:4px}.leaflet-bar a:last-child{border-bottom-left-radius:4px;border-bottom-right-radius:4px;border-bottom:none}.leaflet-bar a.leaflet-disabled{cursor:default;background-color:#f4f4f4;color:#bbb}.leaflet-touch .leaflet-bar a{width:30px;height:30px;line-height:30px}.leaflet-touch .leaflet-bar a:first-child{border-top-left-radius:2px;border-top-right-radius:2px}.leaflet-touch .leaflet-bar a:last-child{border-bottom-left-radius:2px;border-bottom-right-radius:2px}.leaflet-control-zoom-in,.leaflet-control-zoom-out{font:bold 18px 'Lucida Console',Monaco,monospace;text-indent:1px}.leaflet-touch .leaflet-control-zoom-in,.leaflet-touch .leaflet-control-zoom-out{font-size:22px}.leaflet-control-layers{box-shadow:0 1px 5px rgba(0,0,0,0.4);background:#fff;border-radius:5px}.leaflet-control-layers-toggle{background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABoAAAAaCAQAAAADQ4RFAAABfklEQVR4AY2TQUvDQBCF39QiBUFF8KJBL3ryBxQv3oMHLx78A4J/4MGbF0FQUG9eRMGDF0E8+AcKXrwIil4sVLCzSTbJ7kx2N5PevJl5+7IzM0skpdbaGPM/E7TWUkrFGEMAcLlAnHOuC6AsyzDGoC6AsizDGAPWAlhrXWMMUkopYwwAIFfAu+M4kiTRWqOUUowxSCml3nsYY1BKKY0xSClFay3nXCmlUEpJa40xBqWUtNZorTHGQGuN1hqlFDjnUEqJcw4AEEJApFIEEWMAYF2RUqqUElprjDEQQkBrjTEGtNZQSqG1RggBIYQQQiCEQAgBpRR678F7HwA4KXUAoMQhxPd9b60FACilUEpBKYXWGrTWcM7hvQetNXjvwRgDrTVgWa4AOOfemI+cc8YYiOMYzjnEcdwBgNYaIQRqMcdSis5a3jmHWq6jtQalFOJKK4r4b/wQY4zAlAHs4/8bBsBfvFL4G4//YnAZfgN6TfjVGO/P5D/AB9k/6KfhW9AAAAAElFTkSuQmCC);width:36px;height:36px}.leaflet-retina .leaflet-control-layers-toggle{background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADQAAAA0CAQAAABvcdNgAAAEsklEQVR4AZWXT2gcVRiHvzn5s5PdTTabTdI0tSYxTbLZbKOVtI0xVqK4FQRRCp4Kggq9FBT04EEQvHhQEAQv3kRERO1RwYNnQcE/oIJUqdo0TZqkyW52s9k/O/v5zkzmsMy8M++8M/t7dyYjw8yP58/7vG/e9913QpIkpmkatNbDbeW9N8cldSMEIBBEBBF5BKR0VVUpJd57iMgYo6oqIqK19t6bP06hNWOMEhGl1DDlB4QQEGMkhEAIoQNopYQQDNx779ZaRIQxBuccVBUAAmD++secc4UQcM5BRDDGUEpBROG9J6VEjBHvm1ed/y9JkliWZbUUEUII3nsARmZRFAJA0zRF0zRZaxOlVM65EEIL0N67c45SCiEEALDWUkrJWhtSShGRJEmUUtR1DREJwJ13EGMMqor3HhFJluWq64ZhSNM0vfcUQjCnGVkAgDEVY4TWmnMOAFsBFFUVIsJiDK01KSXqusYYA601AbBnjWgCYNVajDEZY0gpEUKgrmvknAOAzSXEzmUl3HtPjHFhqLXGOUdd12itcc4BmL7WWq/SGq01IoIxBuccSZLQ4XAgpcQM1sDW2g6IlHK4Zf2NMYSUKKXgnCOlBIC5tlZiMtc2egNAa01KiRgjIQRyzkPAlBGNM6erqqK1xjmHiFhr8z2r2/wopdZa7z3OOQCwLYjIM89LkkQIAe99AWBV3V9zzrHW4pyjAbV1IEYbY8Q5hyuD1HsvhIgxRggB1lpSSqGU2siSpE1IEnXhmmKMhBDIGEOtpm67CCEz1zohBFprSSnFWssYs8xIZp4ttAAxRlJKuXP5Qgix2XB7ZwCb4WqWc2dtzjnGGBljWBsA7/06k/1orSml4JxD13UXpJRaa40xBmMM2sYIISilYJ2qFsBWjNUasSiKQAiBECJJkhAhY8QYN6JsmJhSipQSYq2sqip97z0AEEIAANZmm4h6vR7OOay1+x/88OPPt2+f++7UyfHxo3/YBeXnj/b39/948J+fXn51cmHhF4Q4m0rpfK8cHfv0dDqd/vexp58l5t0PPrxx48a9773/IUNB+f77b6xSNvLmpjNZr3f22Mefvv/uwqVLz28vtxd6/R2XbU8MPPz6a68opbzzbmBh4Wq/t3+mLLdpnVHKjJxZBGvt5cuXl3723qNPvFVmxTejd8/+7ZXXf/jhZ2stLp3+5OTLLxHR3r17FZCHH3rwsSeerMqydM4VQlhSg7/jBRFBKY0xZmNlWWaty+2KEFKkx0fm338/TdORam/P3r0LMzsBVtW9+fnnn3dsZ5+QhRCmB2hQiVprc87N7to1OTm57YEN0zQpyz3q+Lvv9/t9uP7byMXnvuiGdPLYbACstfpQ0+NAF7/zhQ3nzJtvvHrl6jX4y9daa+f+/tmHx0MzfH+fI5y4cN4W4p2HKKVr4/Anxrh+/fq1a9dOXbveum96sO3aezdGbRi1B65cHd7CzhwOmIAO6N5p08YpWm1j7T1to7RDaP/JwA3s4MbqH+u3ujHZ25gNYRul3TU2R59gN37a3WMaZO/P5G1DYBv0H1OL9IBhGwAAAABJRU5ErkJggg==);background-size:26px 26px;background-repeat:no-repeat}.leaflet-touch .leaflet-control-layers-toggle{width:44px;height:44px}.leaflet-control-layers .leaflet-control-layers-list,.leaflet-control-layers-expanded .leaflet-control-layers-toggle{display:none}.leaflet-control-layers-expanded .leaflet-control-layers-list{display:block;position:relative}.leaflet-control-layers-expanded{padding:6px 10px 6px 6px;color:#333;background:#fff}.leaflet-control-layers-scrollbar{overflow-y:scroll;overflow-x:hidden;padding-right:5px}.leaflet-control-layers-selector{margin-top:2px;position:relative;top:1px}.leaflet-control-layers label{display:block;font-size:13px;font-size:1.08333em}.leaflet-default-icon-path{background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAApCAYAAADAk4LOAAAFgUlEQVR4Aa1XA5BjWRTN2oW17d3YaZtr2962HUzbDNpjs+Wl0Q2N/p8FRbZDSRtQO5IkIokII0SRQlBEJKH8SFarxXQ6JaLZqKqqSoXFYnF3d49IJBKJRAKZTGZflmVRCMF7f7JM09MQ6ZF3nHuv53quL+ciRDzvfTXCOW5OSimGWiu01lprrTXRSqmkiBDCoyhKAkEQ+FnWQ0IIKaWQUkophRACjLGklRqGEGL4DCEEY4whhEBKKYgxcs4RQmCMEWMMpJRiLaLXEGOMYYwxxhhrLQjBuQeAdy5JKdYFVkophLVWCKGIKcYYay2AlFIIJSQE5wwihFLKaRaL0HEc2zaCEEIopZRSAIAQAt47R7CAEFJrDWOMtZaKMcQYAQCEEEKIgRACrLXOOZdlGQCsr+CcSyk551zIOREEiRBjCAAQwkqSpCgKrbV/ymZEUQRjTCqVEjnO7OZ0KaiUklIKIYTJuN5/rSaZTFRVBd57IYQAIK4oAoAQQuOcE0IQUlU1hBBjjK21XwgBUkoZ57xSIDRTpYJSHAAIIbjh3qHcc0REluUZY4W7A2PMCmCMsdaSIqWCrLUu5xwBAOccxhhLKcU5R4QQ57n3EEIEgGW5G+NcyDmHd6m7H4DAWUDINY9zznsgIkdEHBV+rN3A/x5dSikxxrQlJRbM+x87ORRFUWKM1lpKK6WIGGOs9ZnAzjlijLiq6kB/AfTOOZ1zAKCq6gAAWIDnHFVV4SJDDpTv3nzXvPdFRIp3z1sAYG5Zw9zzBABERE4ppVIpYoxlWQaubxFjDErpX2Otdc4BgKqqnHOxFoJ6Z13rQQiBnHNSShFC4L1vtNYrAHWp4ZGNMbZ9pFQVp1IRESFJEkop7ff7xBj/ZmOM9c+d0+l0nHNVVRX3PmOM9a4RAIM1WGsLrRgRa621zjkppRhjvPe7BwDIikgS29bYMHAwG2NYsc4A1toQQrjvnXO2jAH0Ds45IQR/egNAAVhrAVVVEWP0vo4xWus+hd1dnHgX4B0AIiIi55xzAhDHscbjJKX0URlj1FprY4y11oYQ2gOgrAAR0edKKQFRWU8W2SBpjXcGwADIXwhAAFCWEdu5P9gqIskFUIla9V7V3jljjVv/WGsr/XNEbbWkkAgAIVQUHYBtANfr9Thm9scFAKSUmIz9AQARJ2sPAPAGIqK01qvOMAJhnGQgIqJz3wXgCQB31EtaACMiYowJACmltK8A6nY76bIqrwNCRIRSCgAopay1PQBmZo+b3HOJ4x4AXDufmXPn7JzjnFt3B6U1JZUM/r4AJCKSJIn3nk3GEd73BkAEBLt79+4s59z2b40xSim5B72bAMDpdNJa6xUAAOcjAKjVG+cVEVZVZblb9ly4j+Cc01oHACilVgDcXwAAXQsA4DrwXGqtAYCJQpZ5dDjn7n3POafWWmutF0IZY4y7dwBtr/GXBUBEwDm3r1HWOdEMAF1VledOBwDq9XpO6+9wG4QQ4xhzOEn5DwAhO28B4N5bbUY+/AHAOQfnHOdct9vFYNCPPM9jjCnG2N6xNoYr9w8ApfVfABExY4y11owxY4xVxhhrrbX7FjHGkFIKY42k/BWAn+PPjueD+yYAMEfEdPPc+wAA4DkAwHkwQoC4z5ngX3tHIYqSBAAHrwMAUUop8jx3r86DA7DN4T8gREAqlXPObbdbWq0wAF4AAM45YwwvhRACQO7cN+ci51xE1DSV9fizlFK11nY6HUZb4woAvXPOOedXQghprbUAgOgB3g/L84wWBNf/Cf8A+2yQlFKBux0CAAAAAElFTkSuQmCC)!important}
+      `;
+      document.head.appendChild(leafletCSS);
+
+      // Carrega Leaflet JS
+      function loadLeaflet() {
+        return new Promise((resolve) => {
+          const script = document.createElement('script');
+          script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+          script.onload = resolve;
+          document.head.appendChild(script);
+        });
+      }
 
       function setupTabs() {
         tabBtns.forEach(btn => {
@@ -432,7 +432,7 @@
         }, 1000);
       }
 
-      // ========== CHAT + DEEPSEEK ==========
+      // Chat + DeepSeek
       async function sendMessage(message) {
         if (!message.trim() || isRequesting) return;
         isRequesting = true;
@@ -461,7 +461,10 @@
             })
           });
 
-          if (!response.ok) throw new Error('API error');
+          if (!response.ok) {
+            if (response.status === 402) throw new Error('API sem créditos');
+            throw new Error('API error');
+          }
           const data = await response.json();
           const reply = data.choices[0].message.content;
           removeTypingIndicator();
@@ -470,7 +473,11 @@
           saveToLocalHistory(message, reply);
         } catch (error) {
           removeTypingIndicator();
-          addMessage('assistant', 'Desculpe, estou com dificuldades técnicas. Tente novamente.');
+          if (error.message === 'API sem créditos') {
+            addMessage('assistant', '⚠️ Minha chave da API DeepSeek está sem créditos. Por favor, recarregue em platform.deepseek.com ou configure uma nova chave.');
+          } else {
+            addMessage('assistant', 'Desculpe, estou com dificuldades técnicas. Tente novamente.');
+          }
         } finally {
           isRequesting = false;
         }
@@ -512,7 +519,7 @@
         });
       }
 
-      // ========== VOZ ==========
+      // Voz
       function setupSpeech() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
@@ -541,8 +548,9 @@
         window.speechSynthesis.speak(utterance);
       }
 
-      // ========== MAPA LEAFLET ==========
-      function initMap() {
+      // Mapa
+      async function initMap() {
+        await loadLeaflet();
         mapInstance = L.map('map').setView([-23.5505, -46.6333], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '© OpenStreetMap'
@@ -563,7 +571,7 @@
         }
       }
 
-      // ========== CLIMA METEOCLUE ==========
+      // Clima
       async function fetchWeather() {
         try {
           const pos = await new Promise((resolve, reject) => {
@@ -579,24 +587,26 @@
             <h2>🌤️ Clima atual</h2>
             <p>Temperatura: ${temp}°C</p>
             <p>Vento: ${wind} km/h</p>
-            <p>Local: ${data.data?.name || 'sua área'}</p>
           `;
         } catch (e) {
-          document.getElementById('weather-data').innerHTML = 'Clima indisponível.';
+          document.getElementById('weather-data').innerHTML = 'Clima indisponível. Permita a localização.';
         }
       }
 
-      // ========== FIREBASE MEMÓRIA ==========
+      // Memória
       function saveMemory(key, value) {
-        const db = window.db;
-        const memoryRef = window.firebaseRef(db, 'memories/' + key.replace(/[.#$/[\]]/g, '_'));
-        window.firebaseSet(memoryRef, { value, timestamp: Date.now() });
+        if (!db) return;
+        const memoryRef = firebaseRef('memories/' + key.replace(/[.#$/[\]]/g, '_'));
+        firebaseSet(memoryRef, { value, timestamp: Date.now() });
       }
 
       function loadMemories() {
-        const db = window.db;
-        const memRef = window.firebaseRef(db, 'memories');
-        window.firebaseOnValue(memRef, (snapshot) => {
+        if (!db) {
+          document.getElementById('memory-container').innerHTML = '<p>Firebase não carregado.</p>';
+          return;
+        }
+        const memRef = firebaseRef('memories');
+        firebaseOnValue(memRef, (snapshot) => {
           const container = document.getElementById('memory-container');
           if (!container) return;
           container.innerHTML = '';
@@ -615,10 +625,10 @@
       }
 
       async function getMemoryContext() {
+        if (!db) return '';
         return new Promise((resolve) => {
-          const db = window.db;
-          const memRef = window.firebaseRef(db, 'memories');
-          window.firebaseOnValue(memRef, (snapshot) => {
+          const memRef = firebaseRef('memories');
+          firebaseOnValue(memRef, (snapshot) => {
             const data = snapshot.val();
             if (!data) return resolve('');
             const entries = Object.entries(data).map(([k, v]) => `${k}: ${v.value}`).join('; ');
@@ -627,7 +637,6 @@
         });
       }
 
-      // Aprendizado automático: detecta frases como "meu nome é X"
       function learnFromMessage(text) {
         const patterns = [
           { regex: /meu nome é (\w+)/i, key: 'nome' },
@@ -642,7 +651,6 @@
         });
       }
 
-      // ========== EVENTOS ==========
       function setupEventListeners() {
         sendBtn.addEventListener('click', () => {
           const msg = userInput.value.trim();
@@ -663,9 +671,7 @@
         });
 
         micBtn.addEventListener('click', () => {
-          if (recognition) {
-            recognition.start();
-          }
+          if (recognition) recognition.start();
         });
 
         clearBtn.addEventListener('click', () => {
@@ -673,6 +679,21 @@
           localStorage.removeItem('chatHistory');
         });
       }
+
+      // Inicialização
+      async function init() {
+        setupTabs();
+        startClock();
+        loadChatHistory();
+        setupSpeech();
+        await loadFirebase();
+        loadMemories();
+        initMap();
+        fetchWeather();
+        setupEventListeners();
+      }
+
+      document.addEventListener('DOMContentLoaded', init);
     })();
   </script>
 </body>
