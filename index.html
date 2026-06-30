@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧠 IA - Aprendiz do Zero</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0a;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: #1a1a2e;
+            border: 2px solid #00ffff;
+            border-radius: 20px;
+            padding: 20px;
+            max-width: 700px;
+            width: 100%;
+            box-shadow: 0 0 40px #00ffff22;
+        }
+        header h1 { color: #00ffff; font-size: 28px; text-shadow: 0 0 20px #00ffff; }
+        header p { color: #888; font-size: 14px; margin-top: 5px; }
+        .chat-box {
+            background: #0d0d1a;
+            border-radius: 15px;
+            padding: 15px;
+            height: 350px;
+            overflow-y: auto;
+            margin: 20px 0;
+            border: 1px solid #333;
+        }
+        .message { display: flex; align-items: flex-start; margin-bottom: 15px; }
+        .message .avatar { font-size: 28px; margin-right: 10px; }
+        .message p {
+            padding: 10px 15px;
+            border-radius: 10px;
+            max-width: 80%;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+        .message.usuario p { background: #0044aa; margin-left: auto; }
+        .message.ia p { background: #1a1a3e; border-left: 3px solid #00ffff; }
+        .controls { display: flex; gap: 10px; margin-bottom: 15px; }
+        .controls input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #444;
+            background: #0d0d1a;
+            color: #fff;
+            font-size: 16px;
+        }
+        .controls input:focus { outline: none; border-color: #00ffff; }
+        .btn-falar, .btn-enviar {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .btn-falar { background: #ffaa00; color: #000; }
+        .btn-falar:hover { background: #ffcc44; box-shadow: 0 0 20px #ffaa00; }
+        .btn-enviar { background: #00ffff; color: #000; }
+        .btn-enviar:hover { background: #44ffff; box-shadow: 0 0 20px #00ffff; }
+        .modo-ensino {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+            padding: 10px;
+            background: #111125;
+            border-radius: 10px;
+        }
+        .btn-ensino {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            background: #2a2a4a;
+            color: #fff;
+        }
+        .btn-ensino:hover { background: #3a3a6a; transform: scale(1.03); }
+        .btn-reset { background: #aa2222; color: #fff; }
+        .btn-reset:hover { background: #cc3333; }
+        .status {
+            text-align: center;
+            color: #888;
+            font-size: 13px;
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 8px;
+            background: #111125;
+        }
+        .humor {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .humor-triste { background: #334; color: #88f; }
+        .humor-feliz { background: #343; color: #8f8; }
+        .humor-medo { background: #433; color: #f88; }
+        .humor-raiva { background: #533; color: #f44; }
+        .humor-neutro { background: #333; color: #aaa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧠 IA - Aprendiz do Zero</h1>
+            <p>Ela não sabe nada. Você vai ensinar tudo.</p>
+            <p id="humorDisplay" style="margin-top: 5px;">
+                <span class="humor humor-neutro" id="humorBadge">😐 Neutro</span>
+            </p>
+        </header>
+
+        <div class="chat-box" id="chatBox">
+            <div class="message ia">
+                <span class="avatar">🤖</span>
+                <p>Olá! Eu não sei nada. Você vai me ensinar tudo.</p>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="btnFalar" class="btn-falar">🎤 Falar</button>
+            <input type="text" id="inputTexto" placeholder="Digite ou fale..." />
+            <button id="btnEnviar" class="btn-enviar">Enviar</button>
+        </div>
+
+        <div class="modo-ensino">
+            <button id="btnPalavra" class="btn-ensino">📖 Ensinar Palavra</button>
+            <button id="btnSentimento" class="btn-ensino">❤️ Ensinar Sentimento</button>
+            <button id="btnResposta" class="btn-ensino">💬 Ensinar Resposta</button>
+            <button id="btnVer" class="btn-ensino">📚 Ver Aprendizados</button>
+            <button id="btnReset" class="btn-ensino btn-reset">🔄 Reset</button>
+        </div>
+
+        <div id="status" class="status">Pronto para aprender</div>
+    </div>
+
+    <!-- FIREBASE SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <script>
+        // ==========================================
+        // CONFIGURAÇÃO DO FIREBASE
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyAnpqLos4gtwIF6fgbh9Y9RIEZScrX33u0",
+            authDomain: "bizflow-oficial.firebaseapp.com",
+            databaseURL: "https://bizflow-oficial-default-rtdb.firebaseio.com",
+            projectId: "bizflow-oficial",
+            storageBucket: "bizflow-oficial.firebasestorage.app",
+            messagingSenderId: "767888965470",
+            appId: "1:767888965470:web:ba38371163e030adfad9cf",
+            measurementId: "G-G4702KC57C"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const ref = db.ref('/ia_aprendiz');
+
+        // ==========================================
+        // ELEMENTOS DOM
+        // ==========================================
+        const chatBox = document.getElementById('chatBox');
+        const inputTexto = document.getElementById('inputTexto');
+        const btnEnviar = document.getElementById('btnEnviar');
+        const btnFalar = document.getElementById('btnFalar');
+        const statusDiv = document.getElementById('status');
+        const humorBadge = document.getElementById('humorBadge');
+
+        // ==========================================
+        // SYNTHESIS (FALA)
+        // ==========================================
+        function falar(texto) {
+            const utterance = new SpeechSynthesisUtterance(texto);
+            utterance.lang = 'pt-BR';
+            utterance.rate = 0.9;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // ==========================================
+        // ADICIONAR MENSAGEM
+        // ==========================================
+        function adicionarMensagem(remetente, texto) {
+            const div = document.createElement('div');
+            div.className = `message ${remetente}`;
+            const avatar = document.createElement('span');
+            avatar.className = 'avatar';
+            avatar.textContent = remetente === 'ia' ? '🤖' : '👤';
+            const p = document.createElement('p');
+            p.textContent = texto;
+            div.appendChild(avatar);
+            div.appendChild(p);
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // ==========================================
+        // ATUALIZAR HUMOR
+        // ==========================================
+        function atualizarHumor(memoria) {
+            const humores = {
+                'triste': { emoji: '😢', classe: 'humor-triste', texto: 'Triste' },
+                'feliz': { emoji: '😊', classe: 'humor-feliz', texto: 'Feliz' },
+                'assustado': { emoji: '😨', classe: 'humor-medo', texto: 'Com medo' },
+                'raiva': { emoji: '😡', classe: 'humor-raiva', texto: 'Com raiva' },
+                'neutro': { emoji: '😐', classe: 'humor-neutro', texto: 'Neutro' }
+            };
+            const h = humores[memoria.humor] || humores['neutro'];
+            humorBadge.textContent = `${h.emoji} ${h.texto}`;
+            humorBadge.className = `humor ${h.classe}`;
+        }
+
+        // ==========================================
+        // CARREGAR MEMÓRIA
+        // ==========================================
+        function carregarMemoria() {
+            ref.on('value', (snapshot) => {
+                const dados = snapshot.val();
+                if (dados) {
+                    atualizarHumor(dados);
+                    const total = Object.keys(dados.palavras || {}).length +
+                                  Object.keys(dados.sentimentos || {}).length +
+                                  Object.keys(dados.respostas || {}).length;
+                    statusDiv.textContent = `📚 Ela já sabe ${total} coisas!`;
+                } else {
+                    // Criar memória do zero
+                    ref.set({
+                        palavras: {},
+                        sentimentos: {},
+                        respostas: {},
+                        historico: [],
+                        humor: 'neutro',
+                        tristeza: 0,
+                        alegria: 0,
+                        medo: 0,
+                        raiva: 0
+                    });
+                    adicionarMensagem('ia', 'Olá! Eu não sei nada. Você vai me ensinar tudo.');
+                }
+            });
+        }
+
+        // ==========================================
+        // ENSINAR
+        // ==========================================
+        function ensinarPalavra() {
+            const palavra = prompt('Digite a palavra:');
+            if (!palavra) return;
+            const significado = prompt(`Digite o significado de "${palavra}":`);
+            if (!significado) return;
+
+            ref.once('value', (snapshot) => {
+                const memoria = snapshot.val() || { palavras: {}, sentimentos: {}, respostas: {}, historico: [], humor: 'neutro', tristeza: 0, alegria: 0, medo: 0, raiva: 0 };
+                memoria.palavras[palavra.toLowerCase()] = significado;
+                memoria.alegria += 1;
+                memoria.tristeza = Math.max(0, memoria.tristeza - 0.5);
+                ref.set(memoria);
+                const msg = `Aprendi que "${palavra}" significa "${significado}"`;
+                adicionarMensagem('ia', msg);
+                falar(msg);
+            });
+        }
+
+        function ensinarSentimento() {
+            const palavra = prompt('Digite a palavra que descreve um sentimento:');
+            if (!palavra) return;
+            const sentimento = prompt(`Digite o sentimento de "${palavra}" (tristeza, alegria, medo, raiva):`);
+            if (!sentimento) return;
+
+            ref.once('value', (snapshot) => {
+                const memoria = snapshot.val() || { palavras: {}, sentimentos: {}, respostas: {}, historico: [], humor: 'neutro', tristeza: 0, alegria: 0, medo: 0, raiva: 0 };
+                memoria.sentimentos[palavra.toLowerCase()] = sentimento;
+                memoria.alegria += 1;
+                ref.set(memoria);
+                const msg = `Aprendi que "${palavra}" é um sentimento de "${sentimento}"`;
+                adicionarMensagem('ia', msg);
+                falar(msg);
+            });
+        }
+
+        function ensinarResposta() {
+            const pergunta = prompt('Digite a pergunta:');
+            if (!pergunta) return;
+            const resposta = prompt(`Digite a resposta para "${pergunta}":`);
+            if (!resposta) return;
+
+            ref.once('value', (snapshot) => {
+                const memoria = snapshot.val() || { palavras: {}, sentimentos: {}, respostas: {}, historico: [], humor: 'neutro', tristeza: 0, alegria: 0, medo: 0, raiva: 0 };
+                memoria.respostas[pergunta.toLowerCase()] = resposta;
+                memoria.alegria += 1;
+                ref.set(memoria);
+                const msg = `Aprendi que quando perguntarem "${pergunta}", devo responder "${resposta}"`;
+                adicionarMensagem('ia', msg);
+                falar(msg);
+            });
+        }
+
+        // ==========================================
+        // VER APRENDIZADOS
+        // ==========================================
+        function verAprendizados() {
+            ref.once('value', (snapshot) => {
+                const memoria = snapshot.val();
+                if (!memoria) {
+                    adicionarMensagem('ia', 'Eu ainda não aprendi nada. Me ensine algo!');
+                    return;
+                }
+                const total = Object.keys(memoria.palavras || {}).length +
+                              Object.keys(memoria.sentimentos || {}).length +
+                              Object.keys(memoria.respostas || {}).length;
+                if (total === 0) {
+                    adicionarMensagem('ia', 'Eu ainda não aprendi nada. Me ensine algo!');
+                    return;
+                }
+                let msg = `📚 Eu já aprendi ${total} coisas!\n\n`;
+                if (memoria.palavras) {
+                    msg += '📖 Palavras:\n';
+                    for (const [p, s] of Object.entries(memoria.palavras)) {
+                        msg += `  - ${p}: ${s}\n`;
+                    }
+                }
+                if (memoria.sentimentos) {
+                    msg += '\n❤️ Sentimentos:\n';
+                    for (const [p, s] of Object.entries(memoria.sentimentos)) {
+                        msg += `  - ${p}: ${s}\n`;
+                    }
+                }
+                if (memoria.respostas) {
+                    msg += '\n💬 Respostas:\n';
+                    for (const [p, r] of Object.entries(memoria.respostas)) {
+                        msg += `  - "${p}": ${r}\n`;
+                    }
+                }
+                adicionarMensagem('ia', msg);
+            });
+        }
+
+        // ==========================================
+        // RESETAR
+        // ==========================================
+        function resetar() {
+            if (confirm('Tem certeza? Ela vai esquecer TUDO que você ensinou.')) {
+                ref.set({
+                    palavras: {},
+                    sentimentos: {},
+                    respostas: {},
+                    historico: [],
+                    humor: 'neutro',
+                    tristeza: 0,
+                    alegria: 0,
+                    medo: 0,
+                    raiva: 0
+                });
+                adicionarMensagem('ia', '🧠 Eu esqueci tudo. Vamos começar do zero.');
+                falar('Eu esqueci tudo. Vamos começar do zero.');
+                statusDiv.textContent = '🔄 Resetada. Ela não sabe nada.';
+            }
+        }
+
+        // ==========================================
+        // PERGUNTAR
+        // ==========================================
+        function perguntar(pergunta) {
+            pergunta = pergunta.toLowerCase().trim();
+            ref.once('value', (snapshot) => {
+                const memoria = snapshot.val();
+                if (!memoria) {
+                    adicionarMensagem('ia', 'Eu ainda não aprendi nada. Me ensine algo!');
+                    return;
+                }
+
+                // Verifica respostas
+                for (const [p, r] of Object.entries(memoria.respostas || {})) {
+                    if (pergunta.includes(p) || p.includes(pergunta)) {
+                        adicionarMensagem('ia', r);
+                        falar(r);
+                        return;
+                    }
+                }
+
+                // Verifica palavras
+                for (const [p, s] of Object.entries(memoria.palavras || {})) {
+                    if (pergunta.includes(p)) {
+                        const msg = `${p} significa ${s}`;
+                        adicionarMensagem('ia', msg);
+                        falar(msg);
+                        return;
+                    }
+                }
+
+                // Verifica sentimentos
+                for (const [p, s] of Object.entries(memoria.sentimentos || {})) {
+                    if (pergunta.includes(p)) {
+                        const msg = `${p} é um sentimento de ${s}`;
+                        adicionarMensagem('ia', msg);
+                        falar(msg);
+                        return;
+                    }
+                }
+
+                // Não sabe
+                memoria.tristeza += 1.5;
+                memoria.medo += 0.5;
+                ref.set(memoria);
+                const msg = '😢 Eu ainda não aprendi isso. Você pode me ensinar?';
+                adicionarMensagem('ia', msg);
+                falar(msg);
+                statusDiv.textContent = '❓ Ela não sabe. Ensine algo novo!';
+            });
+        }
+
+        // ==========================================
+        // PROCESSAR ENTRADA
+        // ==========================================
+        function processarEntrada(texto) {
+            if (!texto.trim()) return;
+            adicionarMensagem('usuario', texto);
+
+            const cmd = texto.toLowerCase().trim();
+            if (cmd === 'ensinar palavra') { ensinarPalavra(); return; }
+            if (cmd === 'ensinar sentimento') { ensinarSentimento(); return; }
+            if (cmd === 'ensinar resposta') { ensinarResposta(); return; }
+            if (cmd === 'ver') { verAprendizados(); return; }
+            if (cmd === 'reset') { resetar(); return; }
+
+            perguntar(texto);
+            inputTexto.value = '';
+        }
+
+        // ==========================================
+        // EVENTOS
+        // ==========================================
+        btnEnviar.addEventListener('click', () => processarEntrada(inputTexto.value));
+        inputTexto.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') processarEntrada(inputTexto.value);
+        });
+
+        btnFalar.addEventListener('click', () => {
+            if (!('webkitSpeechRecognition' in window)) {
+                alert('Seu navegador não suporta reconhecimento de voz.');
+                return;
+            }
+            const recognition = new webkitSpeechRecognition();
+            recognition.lang = 'pt-BR';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            statusDiv.textContent = '🎤 Ouvindo...';
+            btnFalar.textContent = '⏹ Parar';
+
+            recognition.onresult = (event) => {
+                const texto = event.results[0][0].transcript;
+                statusDiv.textContent = `✅ Você disse: "${texto}"`;
+                inputTexto.value = texto;
+                processarEntrada(texto);
+                btnFalar.textContent = '🎤 Falar';
+            };
+            recognition.onerror = () => {
+                statusDiv.textContent = '❌ Não entendi. Tente novamente.';
+                btnFalar.textContent = '🎤 Falar';
+            };
+            recognition.onend = () => {
+                statusDiv.textContent = 'Pronto para aprender';
+                btnFalar.textContent = '🎤 Falar';
+            };
+            recognition.start();
+        });
+
+        // ==========================================
+        // BOTÕES DE ENSINO
+        // ==========================================
+        document.getElementById('btnPalavra').addEventListener('click', ensinarPalavra);
+        document.getElementById('btnSentimento').addEventListener('click', ensinarSentimento);
+        document.getElementById('btnResposta').addEventListener('click', ensinarResposta);
+        document.getElementById('btnVer').addEventListener('click', verAprendizados);
+        document.getElementById('btnReset').addEventListener('click', resetar);
+
+        // ==========================================
+        // INICIAR
+        // ==========================================
+        carregarMemoria();
+    </script>
+</body>
+</html>
